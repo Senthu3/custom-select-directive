@@ -1,4 +1,4 @@
-# luckystar
+# Custom select dropdown directive
 
 
 Install
