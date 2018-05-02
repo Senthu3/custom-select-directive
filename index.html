@@ -1,0 +1,347 @@
+<html>
+   
+   <head>
+      <title>Angular JS Custom Directives</title>
+   </head>
+   
+   <body ng-app = "mainApp">
+      <h2>AngularJS Isolated Custom Directive</h2>
+      
+      <div class="form-group" ng-controller="customSelectController">
+		<custom-select select-onchange="getSelectedCountry" select-source="{{countryDropdown}}" select-default="{{defaultSelectedCountry}}"></custom-select>
+		<custom-select select-onchange="getSelectedState" select-source="{{stateDropdown}}" select-default="{{defaultSelectedState}}"></custom-select>
+		<custom-select select-onchange="getSelectedCity" select-source="{{cityDropdown}}" select-default="{{defaultSelectCity}}"></custom-select>
+	</div>
+	 
+      <!--script src = "https://ajax.googleapis.com/ajax/libs/angularjs/1.3.14/angular.min.js"></script-->
+	  <!--script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.min.js"></script-->
+	  <script src="node_modules/angular/angular.js"></script>
+      
+      <script>
+         var mainApp = angular.module("mainApp", []);
+		 var customSelect = {};
+			customSelect.restrict = 'E';
+			customSelect.controller = ['$scope', function($scope) {
+
+				$scope.displayList = false; // Hide Dropdown Options
+
+				$scope.defaultSelectValue = function(defaultValue) {
+					$scope.selected = defaultValue; // Default Value
+				}
+
+				//Manipulates the selected option
+				$scope.selectOptions = function(selected) {
+					$scope.selected = selected.target.dataset.text; //Get the selected li Option and display in the button tag
+					$scope.displayList = !$scope.displayList; // Close dropdown
+					var li = selected.target;
+					var dataValue = li.getAttribute('data-value');
+					var dataText = li.getAttribute('data-text');
+					var dataId = parseInt(li.getAttribute('data-id'), 10);
+					var selectedItem = { id: dataId, text: dataText, value: dataValue };
+					$scope.callbackFn(selectedItem);
+				}
+
+				//Function to hide the dropdown if the user clicks outside the select container
+				$scope.hideDropdown = function() {
+					$scope.displayList = false;
+					$scope.$digest();
+				}
+
+				//Listen to Key Events
+				$scope.itemKeyDown = function(keyevent) {
+					var targetUl = keyevent.currentTarget.nextSibling;
+					// 40 standards for Arrow Down, 38 standards for Arrow Up and 13 standards for Enter
+					// keyevent.key not working for IE. So I have used keyevent.keyCode
+					if (keyevent.keyCode == 40 || keyevent.keyCode == 38 || keyevent.keyCode == 13) {
+						$scope.keyNavigation(keyevent.keyCode, targetUl, keyevent);
+					} else {
+						$scope.searchOption(keyevent);
+					}
+				}
+
+				// Navigate the select options based on Arrow Up and Down
+				$scope.keyNavigation = function(keyvalue, targetElement, keyevent) {
+					var li = targetElement.children;
+					var liHeight = targetElement.firstElementChild.clientHeight;
+
+					if (keyvalue == 13) { // Enter key-press Listener
+						$scope.displayList = false;
+
+						var li = keyevent.target.nextSibling.children;
+						for (var i = 0; i < li.length; i++) {
+							if (li[i].classList.contains("cs-selected")) {
+								var dataValue = li[i].getAttribute('data-value');
+								var dataText = li[i].getAttribute('data-text');
+								var dataId = parseInt(li[i].getAttribute('data-id'), 10);
+							}
+						}
+						var selectedItem = { id: dataId, text: dataText, value: dataValue };
+						$scope.callbackFn(selectedItem);
+					} else {
+						for (var i = 0; i < li.length; i++) {
+							if (li[i].classList.contains("cs-selected")) {
+								if (keyvalue == 40) { // Arrow Down key-press Listener
+									if (i + 1 < li.length) {
+										li[i].classList.remove("cs-selected");
+										li[++i].classList.add("cs-selected");
+									}
+								} else { // Arrow UP key-press Listener
+									if (i > 0) {
+										li[i].classList.remove("cs-selected");
+										li[--i].classList.add("cs-selected");
+									}
+								}
+								$scope.selected = li[i].dataset.text;
+								targetElement.scrollTop = liHeight * i;
+							}
+						}
+					}
+
+				}
+
+				// Check if the viewport has enough space to display dropdown else show the options on the top
+				$scope.customDropdown = function(input) {
+					if (input) {
+						$scope.displayList = !$scope.displayList; // Show Select Option
+						var targetUl = input.currentTarget.nextSibling.nextSibling; //Targeted Ul tag
+						var li = targetUl.children; // Get all the select options
+						var style = window.getComputedStyle(document.querySelector('.cs-select-dropdown'));
+						var dropdownHeight = parseFloat(style.maxHeight, 10); // Get the max-height of the options and remove px from the value
+						var liHeight = parseFloat(style.minHeight, 10);
+
+						if ($scope.selected == 'Select' && li.length) {
+							li[0].classList.add("cs-selected");
+							//If the button has default value then select the first option while showing the dropdown
+						} else {
+							for (var i = 0; i < li.length; i++) {
+								li[i].classList.remove("cs-selected");
+								if ($scope.selected == li[i].innerHTML) {
+									li[i].classList.add("cs-selected");
+									targetUl.scrollTop = liHeight * i;
+								}
+							}
+						}
+
+						if (window.innerHeight > (input.clientY + (dropdownHeight + 45))) {
+							$scope.displayList == true ? $scope.class = "cs-dropdown" : $scope.class = "";
+							// I dropdown is possible then add dropdown class
+						} else {
+							$scope.displayList == true ? $scope.class = "cs-dropup" : $scope.class = "";
+							// If dropdown is not possible then add dropup class
+						}
+
+						input.currentTarget.nextSibling.focus();
+						// If the dropdown is selected and change the focus to the input field
+					}
+
+				}
+
+				// Search the options based on the keypress and select the matched options
+				$scope.searchOption = function(keyevent) {
+
+					var targetUl = keyevent.currentTarget.nextSibling;
+					var li = targetUl.children;
+
+					for (var i = 0; i < li.length; i++) {
+						li[i].classList.remove("cs-selected");
+						// Remove the default selected Class
+					}
+
+					for (var i = 0; i < li.length; i++) {
+						var selectOption = li[i].innerHTML;
+						var res = selectOption.charAt(0).toLowerCase();
+						if (res == keyevent.key.toLowerCase()) {
+							li[i].classList.add("cs-selected");
+							targetUl.scrollTop = targetUl.firstElementChild.clientHeight * i;
+							$scope.selected = li[i].innerHTML;
+							// If the search key matches then add selected class to current li and move the scroll to the current li and break the for loop
+							break;
+						} else {
+							targetUl.scrollTop = 0;
+							// If the Search key does not match with the Select Option then move the scroll to the Top
+						}
+					}
+
+				}
+			}];
+
+			var link = function(scope, element, attributes) {
+
+				scope.csContent = (typeof scope.selectContent == "string" && scope.selectContent) ? JSON.parse(scope.selectContent) : {}; //Array of Select Options from Controller
+				scope.defaultSelect = (typeof scope.defaultSelectedValue == "string" && scope.defaultSelectedValue) ? JSON.parse(scope.defaultSelectedValue) : {}; // Default Value from Controller
+
+				if (scope.defaultSelect.label) {
+					scope.selected = scope.defaultSelect.label; // Pre-populated value
+				} else {
+					scope.selected = 'Select'; // Default Value
+				}
+
+				scope.defaultSelectValue(scope.selected); // Update select button value
+
+				var onDocumentClick = function(event) {
+					var parent = event.target;
+					while (parent && parent !== element[0]) {
+						parent = parent.parentNode;
+					}
+					if (!parent) {
+						scope.hideDropdown(); // Hide Select Options on outside clicks
+					}
+				}
+				angular.element(document).on("click", onDocumentClick);
+			};
+		          
+         mainApp.directive('customSelect', function() {
+			
+			 if (screen.width >= 992) {
+				var desktoptemplate = "<div class='cs-sel-box' id='sel-box'><button tabindex='1' id='cs-select' type='button' ng-click='customDropdown($event);' class='form-control input-primary cs-dropdown-button' aria-haspopup='true' aria-expanded='true'>{{selected}}<span class='glyphicon glyphicon-triangle-bottom cs-custom-caret'></span></button><input type='search' ng-keydown='itemKeyDown($event);' class='cs-hidden-search' id='hidden-search'/><ul class='cs-select-dropdown' ng-class='class' id='sel-option' ng-show='displayList'><li ng-click='selectOptions($event);' data-id={{item.id}} data-text={{item.label}} class='cs-option' data-value={{item.value}} ng-repeat='item in csContent track by $index'>{{item.label}}</li></ul></div>";
+			} else {
+				var desktoptemplate = '<div class="nse-select-wrapper"><select class="form-control" ng-options="item as item.label for item in csContent track by item.id" ng-model="defaultSelect" ng-change="callbackFn(defaultSelect);">/select></div>';
+			}
+
+			customSelect.template = desktoptemplate;
+			customSelect.link = link;
+			customSelect.scope = {
+				selectContent: '@selectSource',
+				callbackFn: '=selectOnchange',
+				defaultSelectedValue: '@selectDefault'
+			};
+			return customSelect;
+         });
+		 
+		
+
+		 mainApp.controller('customSelectController', function($scope){
+			$scope.displayList = false;
+			$scope.selected = "Dropdown";
+			var elem = document.getElementById("sel-option");
+			var dropdownHeight = window.getComputedStyle(elem, null).getPropertyValue("height");
+			dropdownHeight = parseFloat(dropdownHeight, 10);
+			$scope.defaultSelectedCountry = { id: "5", label: "India", value: "India" };
+
+			$scope.countryDropdown = [
+				{ id: "0", label: "Afghanistan", value: "Afghanistan" },
+				{ id: "1", label: "Canada", value: "Canada" },
+				{ id: "2", label: "Egypt", value: "Egypt" },
+				{ id: "3", label: "France", value: "France" },
+				{ id: "4", label: "Hungary", value: "Hungary" },
+				{ id: "5", label: "India", value: "India" },
+				{ id: "6", label: "Indonesia", value: "Indonesia" },
+				{ id: "7", label: "Japan", value: "Japan" },
+				{ id: "8", label: "Kyrgyzstan", value: "Kyrgyzstan" },
+				{ id: "9", label: "Nepal", value: "Nepal" },
+				{ id: "10", label: "Netherlands", value: "Netherlands" }
+			];
+
+			$scope.defaultSelectedState = { id: "3", label: "Tamil Nadu", value: "Tamil Nadu" };
+
+			$scope.cityDropdown = [
+				{ id: "0", label: "Mumbai", value: "Mumbai" },
+				{ id: "1", label: "Delhi", value: "Delhi" },
+				{ id: "2", label: "Bangalore", value: "Bangalore" },
+				{ id: "3", label: "Hyderabad", value: "Hyderabad" },
+				{ id: "4", label: "Chennai", value: "Chennai" },
+			];
+
+			$scope.defaultSelectCity = { id: "-1", label: "Select", value: "Select" };
+
+			$scope.stateDropdown = [
+				{ id: "0", label: "Andhra Pradesh", value: "Andhra Pradesh" },
+				{ id: "1", label: "Kerala", value: "Kerala" },
+				{ id: "2", label: "Madhya Pradesh", value: "Madhya Pradesh" },
+				{ id: "3", label: "Tamil Nadu", value: "Tamil Nadu" },
+			];
+
+			$scope.getSelectedCountry = function(selectedValue) {
+				var selectedCountry = selectedValue;
+			}
+
+			$scope.getSelectedCity = function(selectedValue) {
+				var selectedCity = selectedValue;
+			}
+
+			$scope.getSelectedState = function(selectedValue) {
+				var selectedState = selectedValue;
+			}
+			$scope.selectedfn = function(selected){
+				$scope.selected = selected.target.dataset.value;
+				$scope.displayList = !$scope.displayList;
+			}
+			$scope.hidedropdown = function() {
+				$scope.displayList = false;
+			}
+			
+		 });
+			
+      </script>
+	  
+		<style>
+			
+			.cs-sel-box {
+  position: relative;margin-top: 10px; }
+  .cs-sel-box .cs-dropdown-button {
+    color: #F4F6F7 !important;
+    border-radius: 0 !important;
+    width: calc(100% - 20px);
+    min-height: 30px;
+    margin: 0 auto;
+    text-align: left;
+    background: #1B4F72;
+    border: none }
+    .cs-sel-box .cs-dropdown-button .cs-custom-caret {
+      display: inline-block;
+      width: 0;
+      height: 0;
+      margin-left: 2px;
+      vertical-align: middle;
+      border-top: 5px solid;
+      border-right: 5px solid transparent;
+      border-left: 5px solid transparent;
+      position: absolute;
+      right: 30px;
+	  top: 15px;
+      color: #F4F6F7; }
+    .cs-sel-box .cs-dropdown-button:focus {
+      transition-duration: 0s !important;
+      background-image: linear-gradient(#A6D3E1, #A6D3E1), linear-gradient(#CCC, #CCC);
+      background-size: 0 2px, 100% 1px !important;
+      transition-duration: 0s !important; }
+  .cs-sel-box .cs-hidden-search {
+    width: 0px;
+    border: none;
+    overflow: hidden;
+    position: absolute;
+    padding: 0px; }
+  .cs-sel-box .cs-select-dropdown {
+    padding-left: 0;
+    max-height: 128px;
+    min-height: 30px;
+	margin-top: -30px!important;
+    min-width: 220px;
+	margin-top: 0;
+    overflow-y: scroll;
+    width: calc(100% - 20px);
+    position: absolute;
+    z-index: 1;
+    background-color: #1B4F72;
+    box-shadow: 0 8px 4px 0 rgba(0, 0, 0, 0.22), 0 11px 11px 0 rgba(0, 0, 0, 0.22); }
+    .cs-sel-box .cs-select-dropdown li {
+      list-style: none;
+      height: 30px;
+      padding: 7px 10px;
+      font-size: 16px;
+      line-height: 1;
+      text-align: left;
+      //color: #1a1a1a;
+	  color:#D0D3D4; }
+      .cs-sel-box .cs-select-dropdown li:hover {
+        background-color: #1A5276; }
+      .cs-sel-box .cs-select-dropdown li.cs-selected {
+        background-color: #154360 }
+    .cs-sel-box .cs-select-dropdown.cs-dropup {
+      bottom: 30px;
+      box-shadow: 0 6px 6px 0 rgba(0, 0, 0, 0.22), 0 2px 2px 0 rgba(0, 0, 0, 0.22); }
+	  
+		</style>
+      
+   </body>
+</html>
